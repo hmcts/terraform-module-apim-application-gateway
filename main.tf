@@ -388,4 +388,5 @@ resource "azurerm_monitor_diagnostic_setting" "diagnostic_settings" {
       }
     }
   }
+  depends_on = [azurerm_role_assignment.identity]
 }
