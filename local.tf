@@ -8,4 +8,12 @@ locals {
       }
     ]
   ])
+
+  default_ssl_policy = {
+    disabled_protocols   = null
+    policy_type          = "Predefined"
+    policy_name          = "AppGwSslPolicy20220101"
+    cipher_suites        = null
+    min_protocol_version = null
+  }
 }

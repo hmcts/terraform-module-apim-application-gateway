@@ -82,7 +82,7 @@ resource "azurerm_application_gateway" "ag" {
       path                    = lookup(app, "health_path_override", "/health/liveness")
       host_name_include_env   = join(".", [lookup(app, "host_name_prefix", "${app.product}-${app.component}-${var.env}"), app.host_name_suffix])
       host_name_exclude_env   = join(".", [lookup(app, "host_name_prefix", "${app.product}-${app.component}"), app.host_name_suffix])
-      ssl_host_name           = join(".", [lookup(app, "host_name_prefix", "${app.product}-${app.component}"),  app.ssl_host_name_suffix])
+      ssl_host_name           = join(".", [lookup(app, "host_name_prefix", "${app.product}-${app.component}"), app.ssl_host_name_suffix])
       ssl_enabled             = contains(keys(app), "ssl_enabled") ? app.ssl_enabled : false
       exclude_env_in_app_name = lookup(local.gateways[count.index].gateway_configuration, "exclude_env_in_app_name", false)
     }]
@@ -106,7 +106,7 @@ resource "azurerm_application_gateway" "ag" {
       pick_host_name_from_backend_address = contains(keys(app), "pick_host_name_from_backend_address") ? app.pick_host_name_from_backend_address : false
       host_name_include_env               = join(".", [lookup(app, "host_name_prefix", "${app.product}-${app.component}-${var.env}"), app.host_name_suffix])
       host_name_exclude_env               = join(".", [lookup(app, "host_name_prefix", "${app.product}-${app.component}"), app.host_name_suffix])
-      ssl_host_name                       = join(".", [lookup(app, "host_name_prefix", "${app.product}-${app.component}"),  app.ssl_host_name_suffix])
+      ssl_host_name                       = join(".", [lookup(app, "host_name_prefix", "${app.product}-${app.component}"), app.ssl_host_name_suffix])
       ssl_enabled                         = contains(keys(app), "ssl_enabled") ? app.ssl_enabled : false
       exclude_env_in_app_name             = lookup(local.gateways[count.index].gateway_configuration, "exclude_env_in_app_name", false)
       override_backend_host_name          = contains(keys(app), "listener_ssl_host_name_suffix") || contains(keys(app), "listener_host_name_suffix")
@@ -120,7 +120,7 @@ resource "azurerm_application_gateway" "ag" {
       protocol                            = "Http"
       request_timeout                     = 30
       pick_host_name_from_backend_address = backend_http_settings.value.pick_host_name_from_backend_address
-      host_name                           = backend_http_settings.value.pick_host_name_from_backend_address == false && backend_http_settings.value.override_backend_host_name ? (backend_http_settings.value.ssl_enabled ? backend_http_settings.value.ssl_host_name : backend_http_settings.value.exclude_env_in_app_name ? backend_http_settings.value.host_name_exclude_env: backend_http_settings.value.host_name_include_env) : null
+      host_name                           = backend_http_settings.value.pick_host_name_from_backend_address == false && backend_http_settings.value.override_backend_host_name ? (backend_http_settings.value.ssl_enabled ? backend_http_settings.value.ssl_host_name : backend_http_settings.value.exclude_env_in_app_name ? backend_http_settings.value.host_name_exclude_env : backend_http_settings.value.host_name_include_env) : null
     }
   }
 
@@ -175,7 +175,7 @@ resource "azurerm_application_gateway" "ag" {
       listener_host_name = contains(keys(app), "listener_ssl_host_name_suffix") ? join(".", [lookup(app, "listener_host_name_prefix", "${app.product}-${app.component}"), app.listener_ssl_host_name_suffix]) : ""
       host_name          = join(".", [lookup(app, "host_name_prefix", "${app.product}-${app.component}"), app.ssl_host_name_suffix])
       frontend_ip_name   = contains(keys(app), "use_public_ip") ? "appGwPublicFrontendIp" : "appGwPrivateFrontendIp"
-    }
+      }
       if lookup(app, "http_to_https_redirect", false) == true
     ]
 
@@ -243,14 +243,14 @@ resource "azurerm_application_gateway" "ag" {
 
   dynamic "trusted_client_certificate" {
     for_each = flatten([
-    for app in local.gateways[count.index].app_configuration : [
-      for cert in (contains(keys(app), "rootca_certificates") ? app.rootca_certificates : []) : {
-      name                         = "${app.product}-${app.component}-${cert.rootca_certificate_name}"
-      verify_client_cert_issuer_dn = contains(keys(app), "verify_client_cert_issuer_dn") ? app.verify_client_cert_issuer_dn : false
-      data                         = contains(keys(cert), "rootca_certificate_name") ? var.trusted_client_certificate_data[cert.rootca_certificate_name].path : false
-      }
-      if lookup(app, "add_ssl_profile", false) == true && contains(keys(app), "rootca_certificates")
-    ]
+      for app in local.gateways[count.index].app_configuration : [
+        for cert in(contains(keys(app), "rootca_certificates") ? app.rootca_certificates : []) : {
+          name                         = "${app.product}-${app.component}-${cert.rootca_certificate_name}"
+          verify_client_cert_issuer_dn = contains(keys(app), "verify_client_cert_issuer_dn") ? app.verify_client_cert_issuer_dn : false
+          data                         = contains(keys(cert), "rootca_certificate_name") ? var.trusted_client_certificate_data[cert.rootca_certificate_name].path : false
+        }
+        if lookup(app, "add_ssl_profile", false) == true && contains(keys(app), "rootca_certificates")
+      ]
     ])
     content {
       name = trusted_client_certificate.value.name
@@ -260,13 +260,13 @@ resource "azurerm_application_gateway" "ag" {
 
   dynamic "ssl_profile" {
     for_each = [for app in local.gateways[count.index].app_configuration : {
-      name                             = "${app.product}-${app.component}-sslprofile"
-      verify_client_cert_issuer_dn     = contains(keys(app), "verify_client_cert_issuer_dn") ? app.verify_client_cert_issuer_dn : false
+      name                         = "${app.product}-${app.component}-sslprofile"
+      verify_client_cert_issuer_dn = contains(keys(app), "verify_client_cert_issuer_dn") ? app.verify_client_cert_issuer_dn : false
       trusted_client_certificate_names = flatten([
-        for cert in (contains(keys(app), "rootca_certificates") ? app.rootca_certificates : []) : [
+        for cert in(contains(keys(app), "rootca_certificates") ? app.rootca_certificates : []) : [
           "${app.product}-${app.component}-${cert.rootca_certificate_name}"
         ]
-        ])
+      ])
       }
       if lookup(app, "add_ssl_profile", false) == true && contains(keys(app), "rootca_certificates")
     ]
@@ -359,6 +359,17 @@ resource "azurerm_application_gateway" "ag" {
 
         }
       }
+    }
+  }
+
+  dynamic "ssl_policy" {
+    for_each = var.ssl_policy != null ? [var.ssl_policy] : [local.default_ssl_policy]
+    content {
+      disabled_protocols   = ssl_policy[0].policy_type == null && ssl_policy[0].policy_name == null ? ssl_policy[0].disabled_protocols : null
+      policy_type          = lookup(ssl_policy[0], "policy_type", "Predefined")
+      policy_name          = ssl_policy[0].policy_type == "Predefined" ? ssl_policy[0].policy_name : null
+      cipher_suites        = ssl_policy[0].policy_type == "Custom" ? ssl_policy[0].cipher_suites : null
+      min_protocol_version = ssl_policy[0].min_protocol_version
     }
   }
 
