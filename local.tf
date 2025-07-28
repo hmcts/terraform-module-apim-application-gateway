@@ -16,4 +16,5 @@ locals {
     cipher_suites        = null
     min_protocol_version = null
   }
+  ssl_policy = var.ssl_policy != null ? var.ssl_policy : local.default_ssl_policy
 }

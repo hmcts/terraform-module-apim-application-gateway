@@ -362,15 +362,12 @@ resource "azurerm_application_gateway" "ag" {
     }
   }
 
-  dynamic "ssl_policy" {
-    for_each = var.ssl_policy != null ? [var.ssl_policy] : [local.default_ssl_policy]
-    content {
-      disabled_protocols   = ssl_policy[0].policy_type == null && ssl_policy[0].policy_name == null ? ssl_policy[0].disabled_protocols : null
-      policy_type          = lookup(ssl_policy[0], "policy_type", "Predefined")
-      policy_name          = ssl_policy[0].policy_type == "Predefined" ? ssl_policy[0].policy_name : null
-      cipher_suites        = ssl_policy[0].policy_type == "Custom" ? ssl_policy[0].cipher_suites : null
-      min_protocol_version = ssl_policy[0].min_protocol_version
-    }
+  ssl_policy {
+    disabled_protocols   = local.ssl_policy.policy_type == null && local.ssl_policy.policy_name == null ? local.ssl_policy.disabled_protocols : null
+    policy_type          = lookup(local.ssl_policy, "policy_type", "Predefined")
+    policy_name          = local.ssl_policy.policy_type == "Predefined" ? local.ssl_policy.policy_name : null
+    cipher_suites        = local.ssl_policy.policy_type == "Custom" ? local.ssl_policy.cipher_suites : null
+    min_protocol_version = local.ssl_policy.min_protocol_version
   }
 
   depends_on = [azurerm_role_assignment.identity]
