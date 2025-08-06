@@ -96,7 +96,7 @@ variable "enable_multiple_availability_zones" {
 
 variable "public_ip_enable_multiple_availability_zones" {
   description = "Whether or not the public IP should be enabled in multiple availability zones"
-  default = false
+  default     = false
 }
 
 variable "exclusions" {
@@ -105,4 +105,16 @@ variable "exclusions" {
 
 variable "trusted_client_certificate_data" {
   description = "The certificates that will be used to authenticate client certificates. Each entry is a map where the key is a name for the certificate and the value is the content of the certificate."
+}
+
+variable "ssl_policy" {
+  description = "SSL Policy configuration for the Application Gateway. If null, the default policy will be used."
+  type = object({
+    disabled_protocols   = optional(list(string))
+    policy_type          = optional(string)
+    policy_name          = optional(string)
+    cipher_suites        = optional(list(string))
+    min_protocol_version = optional(string)
+  })
+  default = null
 }
