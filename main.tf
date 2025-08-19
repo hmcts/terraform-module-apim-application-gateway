@@ -88,13 +88,19 @@ resource "azurerm_application_gateway" "ag" {
     }]
 
     content {
-      interval            = 10
-      name                = probe.value.name
-      host                = probe.value.ssl_enabled ? probe.value.ssl_host_name : probe.value.exclude_env_in_app_name ? probe.value.host_name_exclude_env : probe.value.host_name_include_env
-      path                = probe.value.path
-      protocol            = "Http"
-      timeout             = 15
-      unhealthy_threshold = 3
+      interval                                  = 10
+      name                                      = probe.value.name
+      host                                      = probe.value.ssl_enabled ? probe.value.ssl_host_name : probe.value.exclude_env_in_app_name ? probe.value.host_name_exclude_env : probe.value.host_name_include_env
+      path                                      = probe.value.path
+      protocol                                  = "Http"
+      minimum_servers                           = 0
+      pick_host_name_from_backend_http_settings = false
+      timeout                                   = 15
+      unhealthy_threshold                       = 3
+
+      match {
+        status_code = ["200-399"]
+      }
     }
   }
 
@@ -367,7 +373,7 @@ resource "azurerm_application_gateway" "ag" {
     policy_type          = lookup(local.ssl_policy, "policy_type", "Predefined")
     policy_name          = local.ssl_policy.policy_type == "Predefined" ? local.ssl_policy.policy_name : null
     cipher_suites        = local.ssl_policy.policy_type == "Custom" ? local.ssl_policy.cipher_suites : null
-    min_protocol_version = local.ssl_policy.min_protocol_version
+    min_protocol_version = local.ssl_policy.min_protocol_version == "Custom" ? local.ssl_policy.min_protocol_version : null
   }
 
   depends_on = [azurerm_role_assignment.identity]
