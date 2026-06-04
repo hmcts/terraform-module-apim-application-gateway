@@ -46,23 +46,7 @@ resource "azurerm_application_gateway" "ag" {
     private_ip_address_allocation = "Static"
   }
 
-  waf_configuration {
-    enabled          = var.enable_waf
-    firewall_mode    = var.waf_mode
-    rule_set_type    = "OWASP"
-    rule_set_version = "3.1"
-
-    dynamic "exclusion" {
-      iterator = exclusion
-      for_each = var.exclusions
-
-      content {
-        match_variable          = exclusion.value.match_variable
-        selector_match_operator = exclusion.value.operator
-        selector                = exclusion.value.selector
-      }
-    }
-  }
+  firewall_policy_id = var.enable_waf ? azurerm_web_application_firewall_policy.waf[0].id : null
 
   dynamic "backend_address_pool" {
     for_each = [for app in local.gateways[count.index].app_configuration : {
@@ -378,6 +362,42 @@ resource "azurerm_application_gateway" "ag" {
 
   depends_on = [azurerm_role_assignment.identity]
 }
+
+resource "azurerm_web_application_firewall_policy" "waf" {
+  provider            = azurerm.hub
+  count               = var.enable_waf ? 1 : 0
+  name                = "${var.project_name}-${var.usage_name}-${var.env}-waf-policy"
+  resource_group_name = var.vnet_rg
+  location            = var.location
+  tags                = var.common_tags
+
+  policy_settings {
+    enabled                     = var.enable_waf
+    mode                        = var.waf_mode
+    request_body_check          = true
+    file_upload_limit_in_mb     = 100
+    max_request_body_size_in_kb = 128
+  }
+
+  managed_rules {
+    dynamic "exclusion" {
+      iterator = exclusion
+      for_each = var.exclusions
+
+      content {
+        match_variable          = exclusion.value.match_variable
+        selector_match_operator = exclusion.value.operator
+        selector                = exclusion.value.selector
+      }
+    }
+
+    managed_rule_set {
+      type    = "OWASP"
+      version = "3.1"
+    }
+  }
+}
+
 
 data "azurerm_monitor_diagnostic_categories" "diagnostic_categories" {
   resource_id = azurerm_application_gateway.ag[0].id
