@@ -393,7 +393,7 @@ resource "azurerm_web_application_firewall_policy" "waf" {
 
     managed_rule_set {
       type    = "OWASP"
-      version = "3.1"
+      version = "3.2"
     }
   }
 }
