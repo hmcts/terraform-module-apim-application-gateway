@@ -46,23 +46,7 @@ resource "azurerm_application_gateway" "ag" {
     private_ip_address_allocation = "Static"
   }
 
-  waf_configuration {
-    enabled          = var.enable_waf
-    firewall_mode    = var.waf_mode
-    rule_set_type    = "OWASP"
-    rule_set_version = "3.1"
-
-    dynamic "exclusion" {
-      iterator = exclusion
-      for_each = var.exclusions
-
-      content {
-        match_variable          = exclusion.value.match_variable
-        selector_match_operator = exclusion.value.operator
-        selector                = exclusion.value.selector
-      }
-    }
-  }
+  firewall_policy_id = var.enable_waf ? azurerm_web_application_firewall_policy.waf[0].id : null
 
   dynamic "backend_address_pool" {
     for_each = [for app in local.gateways[count.index].app_configuration : {
@@ -85,6 +69,7 @@ resource "azurerm_application_gateway" "ag" {
       ssl_host_name           = join(".", [lookup(app, "host_name_prefix", "${app.product}-${app.component}"), app.ssl_host_name_suffix])
       ssl_enabled             = contains(keys(app), "ssl_enabled") ? app.ssl_enabled : false
       exclude_env_in_app_name = lookup(local.gateways[count.index].gateway_configuration, "exclude_env_in_app_name", false)
+      backend_protocol        = lookup(app, "backend_protocol", "Http")
     }]
 
     content {
@@ -92,7 +77,7 @@ resource "azurerm_application_gateway" "ag" {
       name                                      = probe.value.name
       host                                      = probe.value.ssl_enabled ? probe.value.ssl_host_name : probe.value.exclude_env_in_app_name ? probe.value.host_name_exclude_env : probe.value.host_name_include_env
       path                                      = probe.value.path
-      protocol                                  = "Http"
+      protocol                                  = probe.value.backend_protocol
       minimum_servers                           = 0
       pick_host_name_from_backend_http_settings = false
       timeout                                   = 15
@@ -116,14 +101,15 @@ resource "azurerm_application_gateway" "ag" {
       ssl_enabled                         = contains(keys(app), "ssl_enabled") ? app.ssl_enabled : false
       exclude_env_in_app_name             = lookup(local.gateways[count.index].gateway_configuration, "exclude_env_in_app_name", false)
       override_backend_host_name          = contains(keys(app), "listener_ssl_host_name_suffix") || contains(keys(app), "listener_host_name_suffix")
+      backend_protocol                    = lookup(app, "backend_protocol", "Http")
     }]
 
     content {
       name                                = backend_http_settings.value.name
       probe_name                          = backend_http_settings.value.probe_name
       cookie_based_affinity               = backend_http_settings.value.cookie_based_affinity
-      port                                = 80
-      protocol                            = "Http"
+      port                                = backend_http_settings.value.backend_protocol == "Http" ? 80 : 443
+      protocol                            = backend_http_settings.value.backend_protocol
       request_timeout                     = 30
       pick_host_name_from_backend_address = backend_http_settings.value.pick_host_name_from_backend_address
       host_name                           = backend_http_settings.value.pick_host_name_from_backend_address == false && backend_http_settings.value.override_backend_host_name ? (backend_http_settings.value.ssl_enabled ? backend_http_settings.value.ssl_host_name : backend_http_settings.value.exclude_env_in_app_name ? backend_http_settings.value.host_name_exclude_env : backend_http_settings.value.host_name_include_env) : null
@@ -378,6 +364,42 @@ resource "azurerm_application_gateway" "ag" {
 
   depends_on = [azurerm_role_assignment.identity]
 }
+
+resource "azurerm_web_application_firewall_policy" "waf" {
+  provider            = azurerm.hub
+  count               = var.enable_waf ? 1 : 0
+  name                = "${var.project_name}-${var.usage_name}-${var.env}-waf-policy"
+  resource_group_name = var.vnet_rg
+  location            = var.location
+  tags                = var.common_tags
+
+  policy_settings {
+    enabled                     = var.enable_waf
+    mode                        = var.waf_mode
+    request_body_check          = true
+    file_upload_limit_in_mb     = 100
+    max_request_body_size_in_kb = 128
+  }
+
+  managed_rules {
+    dynamic "exclusion" {
+      iterator = exclusion
+      for_each = var.exclusions
+
+      content {
+        match_variable          = exclusion.value.match_variable
+        selector_match_operator = exclusion.value.operator
+        selector                = exclusion.value.selector
+      }
+    }
+
+    managed_rule_set {
+      type    = "OWASP"
+      version = "3.2"
+    }
+  }
+}
+
 
 data "azurerm_monitor_diagnostic_categories" "diagnostic_categories" {
   resource_id = azurerm_application_gateway.ag[0].id
