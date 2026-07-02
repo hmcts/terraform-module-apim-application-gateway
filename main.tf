@@ -69,6 +69,7 @@ resource "azurerm_application_gateway" "ag" {
       ssl_host_name           = join(".", [lookup(app, "host_name_prefix", "${app.product}-${app.component}"), app.ssl_host_name_suffix])
       ssl_enabled             = contains(keys(app), "ssl_enabled") ? app.ssl_enabled : false
       exclude_env_in_app_name = lookup(local.gateways[count.index].gateway_configuration, "exclude_env_in_app_name", false)
+      backend_protocol        = lookup(app, "backend_protocol", "Http")
     }]
 
     content {
@@ -76,7 +77,7 @@ resource "azurerm_application_gateway" "ag" {
       name                                      = probe.value.name
       host                                      = probe.value.ssl_enabled ? probe.value.ssl_host_name : probe.value.exclude_env_in_app_name ? probe.value.host_name_exclude_env : probe.value.host_name_include_env
       path                                      = probe.value.path
-      protocol                                  = lookup(probe.value, "backend_protocol", "Http")
+      protocol                                  = probe.value.backend_protocol
       minimum_servers                           = 0
       pick_host_name_from_backend_http_settings = false
       timeout                                   = 15
@@ -100,6 +101,7 @@ resource "azurerm_application_gateway" "ag" {
       ssl_enabled                         = contains(keys(app), "ssl_enabled") ? app.ssl_enabled : false
       exclude_env_in_app_name             = lookup(local.gateways[count.index].gateway_configuration, "exclude_env_in_app_name", false)
       override_backend_host_name          = contains(keys(app), "listener_ssl_host_name_suffix") || contains(keys(app), "listener_host_name_suffix")
+      backend_protocol                    = lookup(app, "backend_protocol", "Http")
     }]
 
     content {
@@ -107,7 +109,7 @@ resource "azurerm_application_gateway" "ag" {
       probe_name                          = backend_http_settings.value.probe_name
       cookie_based_affinity               = backend_http_settings.value.cookie_based_affinity
       port                                = 80
-      protocol                            = lookup(backend_http_settings.value, "backend_protocol", "Http")
+      protocol                            = backend_http_settings.value.backend_protocol
       request_timeout                     = 30
       pick_host_name_from_backend_address = backend_http_settings.value.pick_host_name_from_backend_address
       host_name                           = backend_http_settings.value.pick_host_name_from_backend_address == false && backend_http_settings.value.override_backend_host_name ? (backend_http_settings.value.ssl_enabled ? backend_http_settings.value.ssl_host_name : backend_http_settings.value.exclude_env_in_app_name ? backend_http_settings.value.host_name_exclude_env : backend_http_settings.value.host_name_include_env) : null
