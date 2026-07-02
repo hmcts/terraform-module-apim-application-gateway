@@ -76,7 +76,7 @@ resource "azurerm_application_gateway" "ag" {
       name                                      = probe.value.name
       host                                      = probe.value.ssl_enabled ? probe.value.ssl_host_name : probe.value.exclude_env_in_app_name ? probe.value.host_name_exclude_env : probe.value.host_name_include_env
       path                                      = probe.value.path
-      protocol                                  = "Http"
+      protocol                                  = lookup(probe.value, "backend_protocol", "Http")
       minimum_servers                           = 0
       pick_host_name_from_backend_http_settings = false
       timeout                                   = 15
@@ -107,7 +107,7 @@ resource "azurerm_application_gateway" "ag" {
       probe_name                          = backend_http_settings.value.probe_name
       cookie_based_affinity               = backend_http_settings.value.cookie_based_affinity
       port                                = 80
-      protocol                            = "Http"
+      protocol                            = lookup(backend_http_settings.value, "backend_protocol", "Http")
       request_timeout                     = 30
       pick_host_name_from_backend_address = backend_http_settings.value.pick_host_name_from_backend_address
       host_name                           = backend_http_settings.value.pick_host_name_from_backend_address == false && backend_http_settings.value.override_backend_host_name ? (backend_http_settings.value.ssl_enabled ? backend_http_settings.value.ssl_host_name : backend_http_settings.value.exclude_env_in_app_name ? backend_http_settings.value.host_name_exclude_env : backend_http_settings.value.host_name_include_env) : null
